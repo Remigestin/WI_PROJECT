@@ -1,4 +1,5 @@
 import org.apache.spark.sql.SparkSession
+
 object FirstSparkApplication extends App {
 
   //Only for windows user I think
@@ -8,6 +9,8 @@ object FirstSparkApplication extends App {
     .master("local[*]")
     .appName("FirstSparkApplication")
     .getOrCreate()
+
+  spark.sparkContext.setLogLevel("ERROR")
 
 
   val jsonData = spark.read.json("data-students.json")
