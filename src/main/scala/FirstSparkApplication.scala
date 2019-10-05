@@ -19,5 +19,7 @@ object FirstSparkApplication extends App {
   jsonData.createOrReplaceTempView("data")
   val tmp = spark.sql("SELECT * FROM data LIMIT 10")
   tmp.show()
+  
+  spark.stop
 
 }
