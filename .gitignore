@@ -1,2 +1,5 @@
 /.idea/
 /data-students.json
+/target/
+/project/target/
+
