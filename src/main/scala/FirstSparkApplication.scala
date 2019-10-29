@@ -1,6 +1,7 @@
 import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler, VectorIndexer}
+import org.apache.spark.ml.classification.{DecisionTreeClassifier, LogisticRegression}
+import org.apache.spark.ml.evaluation.{MulticlassClassificationEvaluator, RegressionEvaluator}
+import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler, VectorIndexer}
 import org.apache.spark.ml.regression.GBTRegressor
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.IntegerType
@@ -28,7 +29,7 @@ object FirstSparkApplication extends App {
 
   //how to count all the line for a dataFrame
   //println("number total of row =  " + jsonData.count())
- // println("number of bidFloor null = " + jsonData.filter("bidFloor is NULL").count())
+  // println("number of bidFloor null = " + jsonData.filter("bidFloor is NULL").count())
   //jsonData.groupBy("label").count.show()
   //try to supp null value for bidFloor
   val cleanJson = jsonData.na.drop("any", Seq("bidFloor"))
@@ -49,49 +50,59 @@ object FirstSparkApplication extends App {
   //cleanData.printSchema()
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  //Tree classifier
-
-
-  val df2 = finalJson.selectExpr("cast(label AS int) label",
+  // Index labels, adding metadata to the label column.
+  // Fit on whole dataset to include all labels in index.
+  val df2 = finalJson.selectExpr("cast(label AS STRING) label",
     "bidFloor",
     "media")
 
-  //Parse the data
-  val Array(trainingData, testData) = df2.randomSplit(Array(0.7, 0.3))
-
+  val labelIndexer = new StringIndexer()
+    .setInputCol("label")
+    .setOutputCol("indexedLabel")
+    .fit(df2)
 
   //We define a StringIndexers for the categorical variable media
   val indexerMedia = new StringIndexer()
     .setInputCol("media")
     .setOutputCol("mediaIndex")
 
-  //We define the assembler to collect the columns into a new column with a single vector - "features"
   val assembler = new VectorAssembler()
     .setInputCols(Array("bidFloor", "mediaIndex"))
     .setOutputCol("features")
 
-  //For the regression we'll use the Gradient-boosted tree estimator
-  val gbt = new GBTRegressor()
-    .setLabelCol("label")
-    .setFeaturesCol("features")
-    .setPredictionCol("Predicted " + "label")
-    .setMaxIter(50)
+  // Split the data into training and test sets (30% held out for testing)
+  val Array(trainingData, testData) = df2.randomSplit(Array(0.7, 0.3))
 
-  //Construct the pipeline
-  val pipeline = new Pipeline().setStages(Array(indexerMedia, assembler, gbt))
-  //We fit our DataFrame into the pipeline to generate a model
+  // Train a DecisionTree model.
+  val dt = new DecisionTreeClassifier()
+    .setLabelCol("indexedLabel")
+    .setFeaturesCol("features")
+
+  // Convert indexed labels back to original labels.
+  val labelConverter = new IndexToString()
+    .setInputCol("prediction")
+    .setOutputCol("predictedLabel")
+    .setLabels(labelIndexer.labels)
+
+  // Chain indexers and tree in a Pipeline
+  val pipeline = new Pipeline().setStages(Array(labelIndexer,indexerMedia, assembler, dt, labelConverter))
+
+  // Train model.  This also runs the indexers.
   val model = pipeline.fit(trainingData)
-  //We'll make predictions using the model and the test data
+
+  // Make predictions.
   val predictions = model.transform(testData)
 
-  //This will evaluate the error/deviation of the regression using the Root Mean Squared deviation
-  val evaluator = new RegressionEvaluator()
-    .setLabelCol("label")
-    .setPredictionCol("Predicted " + " label")
-    .setMetricName("rmse")
-  //We compute the error using the evaluator
-  val error = evaluator.evaluate(predictions)
-  println(error)
+  // Select example rows to display.
+  predictions.select("predictedLabel", "label", "features").show(5)
+
+  // Select (prediction, true label) and compute test error
+  val evaluator = new MulticlassClassificationEvaluator()
+    .setLabelCol("indexedLabel")
+    .setPredictionCol("prediction")
+    .setMetricName("precision")
+  val accuracy = evaluator.evaluate(predictions)
+  println("Test Error = " + (1.0 - accuracy))
 
   spark.stop
 
