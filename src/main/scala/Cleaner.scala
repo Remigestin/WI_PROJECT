@@ -6,6 +6,24 @@ import org.apache.spark.sql.functions.udf
 object Cleaner {
 
   /**
+   * Complete cleaning of the dataframe
+   * @param df : dataframe containing a colomn "interests" and "size"
+   * @return the given dataframe cleaned
+   */
+  def generalClean(df: DataFrame): DataFrame = {
+
+    /** Delete rows with a null value */
+    val dfCleaned_1 = df.na.drop()
+
+    /** Clean Interests Column */
+    val dfCleaned_2 = cleanInterests(dfCleaned_1)
+
+    /** Clean Size Column */
+    cleanSize(dfCleaned_2)
+  }
+
+
+  /**
    * Clean "interests" column
    * @param df : dataframe containing a colomn "interests"
    * @return the given dataframe updated with new interests columns
@@ -45,8 +63,8 @@ object Cleaner {
         val IABn = "IAB" + interestNb
 
         val containsInterestUDF = udf { listInterests: String =>
-          if (listInterests.contains(IABn + ",") || listInterests.contains(IABn + "-")) "1"
-          else "0"
+          if (listInterests.contains(IABn + ",") || listInterests.contains(IABn + "-")) 1
+          else 0
         }
 
         val IABnColumn = containsInterestUDF(accDataframe.col("interests"))
