@@ -2,6 +2,7 @@ import FirstSparkApplication.{jsonData, spark}
 import org.apache.parquet.filter2.predicate.Operators.Column
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.types.IntegerType
 
 object Cleaner {
 
@@ -18,8 +19,11 @@ object Cleaner {
     /** Clean Interests Column */
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
 
+    /** Cast labels to String */
+    dfCleaned_2.withColumn("label", df.col("label").cast("String"))
+
     /** Clean Size Column */
-    cleanSize(dfCleaned_2)
+    //cleanSize(dfCleaned_2)
   }
 
 
