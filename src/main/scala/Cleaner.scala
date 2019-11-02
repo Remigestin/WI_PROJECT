@@ -17,11 +17,14 @@ object Cleaner {
     /** Clean Interests Column */
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
 
+    /** Add column with ratio */
+    val dfCleaned_3 = addClassWeightCol(dfCleaned_2)
+
     /** Cast labels to String */
-    val dfCleaned_3 = dfCleaned_2.withColumn("label", df.col("label").cast("String"))
+    val dfCleaned_4 = dfCleaned_3.withColumn("label", df.col("label").cast("String"))
 
     /** Clean Size Column */
-    cleanSize(dfCleaned_3)
+    cleanSize(dfCleaned_4)
   }
 
 
@@ -103,5 +106,17 @@ object Cleaner {
     val columnSize = sizeArea(df.col("size"))
     val dfUpdated = df.withColumn("area", columnSize)
     dfUpdated
+  }
+
+
+  def addClassWeightCol(df: DataFrame): DataFrame = {
+
+    val addRatio = udf { label: Boolean =>
+      if (label) 0.97
+      else 0.03
+    }
+
+    val labelWithRadio = addRatio(df.col("label"))
+    df.withColumn("classWeightCol", labelWithRadio)
   }
 }

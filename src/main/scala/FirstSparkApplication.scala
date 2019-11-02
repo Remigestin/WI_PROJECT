@@ -31,13 +31,15 @@ object FirstSparkApplication extends App{
 
   // Select only the needed columns
   val finalData = cleanedData.select(
-    "label",
+    "label", "classWeightCol",
     "bidFloor", "media", "appOrSite","area",
     "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
     "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
     "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
 
-  finalData.show(5)
+  println("NB LABELS : ")
+  finalData.groupBy("label").count.show()
+
   // Index labels, adding metadata to the label column.
   val labelIndexer = new StringIndexer()
     .setInputCol("label")
@@ -67,9 +69,7 @@ object FirstSparkApplication extends App{
 
 
   val lr = new LogisticRegression()
-    .setMaxIter(10)
-    .setRegParam(0.3)
-    .setElasticNetParam(0.8)
+    .setWeightCol("classWeightCol")
     .setLabelCol("indexedLabel")
     .setFeaturesCol("features")
 
@@ -104,9 +104,10 @@ object FirstSparkApplication extends App{
 
 
 
-
   val p = predictions.select("predictedLabel", "label", "features")
 
+  // Code a nettoyer
+  // Cast les colonnes label et predictedLabel en Double pour les metrics
   val castToDouble = udf { label: String =>
     if (label == "false") 0.0
     else 1.0
