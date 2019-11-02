@@ -12,7 +12,7 @@ object Cleaner {
   def generalClean(df: DataFrame): DataFrame = {
 
     /** Delete rows with a null value in the columns of features */
-    val dfCleaned_1 = df.na.drop("any", Seq("bidfloor", "appOrSite", "media", "interests"))
+    val dfCleaned_1 = df.na.drop("any", Seq("bidfloor", "appOrSite", "media", "interests", "size"))
 
     /** Clean Interests Column */
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
@@ -36,8 +36,7 @@ object Cleaner {
     /** REPLACE NULL WITH N/A */
     /** KEEP ONLY INTERESTS IN THE RIGHT FORMAT (code starting with IAB) */
     val removeIfNotCodeUDF = udf { interests: String =>
-      if (interests == null) "N/A"
-      else interests.split(",").filter(_.startsWith("IAB")) mkString ","
+      interests.split(",").filter(_.startsWith("IAB")) mkString ","
     }
 
     val interestsCleaned = removeIfNotCodeUDF(df.col("interests"))
@@ -90,17 +89,14 @@ object Cleaner {
 
     val sizeArea = udf { size: Seq[Long] =>
 
-      if (size == null) 0
+      val area = size(0) * size(1)
+      //big area
+      if (area > 150000) 3
       else {
-        val area = size(0) * size(1)
-        //big area
-        if (area > 150000) 3
-        else {
-          //medium area
-          if (area > 60000) 2
-          //small area
-          else 1
-        }
+        //medium area
+        if (area > 60000) 2
+        //small area
+        else 1
       }
     }
 
