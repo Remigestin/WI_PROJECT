@@ -1,5 +1,5 @@
 import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.classification.DecisionTreeClassifier
+import org.apache.spark.ml.classification.{DecisionTreeClassifier, LogisticRegression}
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
 import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics, RegressionMetrics}
@@ -65,6 +65,14 @@ object FirstSparkApplication extends App{
   // Split the data into training and test sets (30% held out for testing)
   val Array(trainingData, testData) = finalData.randomSplit(Array(0.7, 0.3))
 
+
+  val lr = new LogisticRegression()
+    .setMaxIter(10)
+    .setRegParam(0.3)
+    .setElasticNetParam(0.8)
+    .setLabelCol("indexedLabel")
+    .setFeaturesCol("features")
+
   // Train a DecisionTree model.
   val dt = new DecisionTreeClassifier()
     .setLabelCol("indexedLabel")
@@ -77,7 +85,7 @@ object FirstSparkApplication extends App{
     .setLabels(labelIndexer.labels)
 
   // Chain indexers and tree in a Pipeline
-  val pipeline = new Pipeline().setStages(Array(labelIndexer, indexerMedia, indexerAppOrSite, assembler, dt, labelConverter))
+  val pipeline = new Pipeline().setStages(Array(labelIndexer, indexerMedia, indexerAppOrSite, assembler, lr, labelConverter))
 
   // Train model.  This also runs the indexers.
   val model = pipeline.fit(trainingData)
