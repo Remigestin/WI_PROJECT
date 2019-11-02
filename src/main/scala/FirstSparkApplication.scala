@@ -2,7 +2,12 @@ import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.DecisionTreeClassifier
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics, RegressionMetrics}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.sql.functions.udf
+
 
 object FirstSparkApplication extends App {
 
@@ -19,6 +24,7 @@ object FirstSparkApplication extends App {
   // Read json data
   val jsonData = spark.read.json("data-students.json")
 
+  jsonData.show(5)
 
   // DATA CLEANING
   val cleanedData = Cleaner.generalClean(jsonData)
@@ -33,6 +39,7 @@ object FirstSparkApplication extends App {
     "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
     "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
 
+  finalData.show(5)
   // Index labels, adding metadata to the label column.
   val labelIndexer = new StringIndexer()
     .setInputCol("label")
@@ -80,9 +87,6 @@ object FirstSparkApplication extends App {
   // Make predictions.
   val predictions = model.transform(testData)
 
-  // Select example rows to display.
-  predictions.select("predictedLabel", "label", "features").show(100)
-
   // Select (prediction, true label) and compute test error
   val evaluator = new MulticlassClassificationEvaluator()
     .setLabelCol("indexedLabel")
@@ -91,6 +95,53 @@ object FirstSparkApplication extends App {
   val accuracy = evaluator.evaluate(predictions)
   println("Test Error = " + (1.0 - accuracy))
   println("ACCURACY " + accuracy)
+
+
+
+
+  val p = predictions.select("predictedLabel", "label", "features")
+
+  val castToDouble = udf { label: String =>
+    if (label == "false") 0.0
+    else 1.0
+  }
+
+  val casted = castToDouble(p.col("label"))
+  val newDataframe = p.withColumn("label", casted)
+
+  val casted2 = castToDouble(p.col("predictedLabel"))
+  val newDataframe2 = newDataframe.withColumn("predictedLabel", casted2)
+
+  val rows: RDD[Row] = newDataframe2.rdd
+  val predictionAndLabels = rows.map(row => (row.getAs[Double](0), row.getAs[Double](1)))
+
+  // Instantiate metrics object
+  val metrics = new MulticlassMetrics(predictionAndLabels)
+
+  // Confusion matrix
+  println("Confusion matrix:")
+  println(metrics.confusionMatrix)
+
+  // Overall Statistics
+  val accuracy2 = metrics.accuracy
+  println("Summary Statistics")
+  println(s"Accuracy = " + accuracy2)
+
+  // Precision by label
+  val labels = metrics.labels
+  labels.foreach { l =>
+    println(s"Precision($l) = " + metrics.precision(l))
+  }
+
+  // Recall by label
+  labels.foreach { l =>
+    println(s"Recall($l) = " + metrics.recall(l))
+  }
+
+  // False positive rate by label
+  labels.foreach { l =>
+    println(s"FPR($l) = " + metrics.falsePositiveRate(l))
+  }
 
   spark.stop
 
