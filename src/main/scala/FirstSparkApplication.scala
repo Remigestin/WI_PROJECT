@@ -4,7 +4,7 @@ import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
 import org.apache.spark.sql.SparkSession
 
-object FirstSparkApplication extends App {
+object FirstSparkApplication extends App{
 
   //Only for windows user I think
   System.setProperty("hadoop.home.dir", "C:\\winutils")
@@ -23,12 +23,10 @@ object FirstSparkApplication extends App {
   // DATA CLEANING
   val cleanedData = Cleaner.generalClean(jsonData)
 
-  //appOrSite, media, label les passer sous indexer
-
   // Select only the needed columns
   val finalData = cleanedData.select(
     "label",
-    "bidFloor", "media", "appOrSite",
+    "bidFloor", "media", "appOrSite","area",
     "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
     "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
     "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
@@ -51,7 +49,7 @@ object FirstSparkApplication extends App {
 
   // Create features column
   val assembler = new VectorAssembler()
-    .setInputCols(Array("bidFloor", "mediaIndex", "appOrSiteIndex",
+    .setInputCols(Array("bidFloor", "mediaIndex", "appOrSiteIndex","area",
       "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
       "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
       "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26"))

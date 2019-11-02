@@ -1,13 +1,11 @@
-import FirstSparkApplication.{jsonData, spark}
-import org.apache.parquet.filter2.predicate.Operators.Column
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions.udf
-import org.apache.spark.sql.types.IntegerType
 
 object Cleaner {
 
   /**
    * Complete cleaning of the dataframe
+   *
    * @param df : dataframe containing a colomn "interests" and "size"
    * @return the given dataframe cleaned
    */
@@ -20,15 +18,16 @@ object Cleaner {
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
 
     /** Cast labels to String */
-    dfCleaned_2.withColumn("label", df.col("label").cast("String"))
+    val dfCleaned_3 = dfCleaned_2.withColumn("label", df.col("label").cast("String"))
 
     /** Clean Size Column */
-    //cleanSize(dfCleaned_2)
+    cleanSize(dfCleaned_3)
   }
 
 
   /**
    * Clean "interests" column
+   *
    * @param df : dataframe containing a colomn "interests"
    * @return the given dataframe updated with new interests columns
    */
@@ -53,6 +52,7 @@ object Cleaner {
   /**
    * Create 26 columns for each interest class.
    * Each column contains 1 if the row has the interest specified in "interests" column, else contains 0
+   *
    * @param df : dataframe containing a column "interests"
    * @return the given dataframe updated with new columns for each interest
    */
@@ -79,5 +79,33 @@ object Cleaner {
     }
 
     loop(df, 1)
+  }
+
+  /**
+   *
+   * @param df : dataframe containing a column "size"
+   * @return : the given dataframe updated with a new column area (= 0 if null, 1 if small size, 2 if medium, 3 if big)
+   */
+  def cleanSize(df: DataFrame): DataFrame = {
+
+    val sizeArea = udf { size: Seq[Long] =>
+
+      if (size == null) 0
+      else {
+        val area = size(0) * size(1)
+        //big area
+        if (area > 150000) 3
+        else {
+          //medium area
+          if (area > 60000) 2
+          //small area
+          else 1
+        }
+      }
+    }
+
+    val columnSize = sizeArea(df.col("size"))
+    val dfUpdated = df.withColumn("area", columnSize)
+    dfUpdated
   }
 }
