@@ -13,8 +13,8 @@ object Cleaner {
    */
   def generalClean(df: DataFrame): DataFrame = {
 
-    /** Delete rows with a null value */
-    val dfCleaned_1 = df.na.drop()
+    /** Delete rows with a null value in the columns of features */
+    val dfCleaned_1 = df.na.drop("any", Seq("bidfloor", "appOrSite", "media", "interests"))
 
     /** Clean Interests Column */
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
