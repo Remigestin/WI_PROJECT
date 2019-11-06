@@ -108,12 +108,17 @@ object Cleaner {
     dfUpdated
   }
 
-
+  /**
+   *
+   * @param df : a non balanced dataFrame
+   * @return : a dataFrame with a column to balance the part of false and true labels
+   */
   def addClassWeightCol(df: DataFrame): DataFrame = {
 
     val addRatio = udf { label: Boolean =>
-      if (label) 0.97
-      else 0.03
+      val balanceRatio = 0.97509967
+      if (label) balanceRatio
+      else 1 - balanceRatio
     }
 
     val labelWithRadio = addRatio(df.col("label"))
