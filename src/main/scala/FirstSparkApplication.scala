@@ -14,6 +14,7 @@ object FirstSparkApplication extends App {
 
   /**
    * From the model, it creates a csv with all the predictions
+   *
    * @param testDataName : data on which prediction is made
    */
   def predict(testDataName: String): Unit = {
@@ -35,15 +36,19 @@ object FirstSparkApplication extends App {
     val testData = prepareData(spark, testDataName).randomSplit(Array(0.7, 0.3))(1)
 
     // Make predictions.
-    val predictions = model.transform(testData)
-    predictions.select("predictedLabel", "label", "features").show(100)
-
+    val predictions = model.transform(testData).select("predictedLabel", "label", "bidFloor", "mediaIndex", "appOrSiteIndex", "area",
+        "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
+        "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
+        "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
+    //predictions.printSchema()
+    predictions.coalesce(1).write.format("csv").save("predictions.csv")
     buildMetrix(predictions)
     spark.stop
   }
 
   /**
    * Print in the console all the metrix of the predictions in parameter
+   *
    * @param predictions : dataFrame of the predictions
    */
   private def buildMetrix(predictions: DataFrame): Unit = {
@@ -106,7 +111,7 @@ object FirstSparkApplication extends App {
 
   /**
    *
-   * @param spark : spark session
+   * @param spark            : spark session
    * @param trainingDataName : name of the training dataFrame
    * @return : The model loaded if already exists, otherwise the model created.
    */
@@ -169,7 +174,7 @@ object FirstSparkApplication extends App {
   /**
    *
    * @param spark : spark session
-   * @param data : name of the dataFrame to prepare
+   * @param data  : name of the dataFrame to prepare
    * @return : the dataFrame prepared
    */
   private def prepareData(spark: SparkSession, data: String): DataFrame = {
