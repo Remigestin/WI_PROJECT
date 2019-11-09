@@ -9,7 +9,6 @@ Begin by cloning the project :
 Then you need to put your testing data on the root project. 
 Be careful your data should be named : "testData.json"
 
-
 ###Build a new model
 A model already exists on the project (it's the "spark-lr-model folder"). 
 When the program is running, this model is load and so used.
