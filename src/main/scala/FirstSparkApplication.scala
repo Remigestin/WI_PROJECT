@@ -5,19 +5,20 @@ import java.time.format.DateTimeFormatter
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession, functions}
 
 
 object FirstSparkApplication extends App {
 
-  predict("data-students.json")
+  predict()
 
   /**
    * From the model, it creates a csv with all the predictions
    *
-   * @param testDataName : data on which prediction is made
    */
-  def predict(testDataName: String): Unit = {
+  def predict(): Unit = {
+
+    val testDataName = "data-students.json"
 
     //Only for windows user I think
     System.setProperty("hadoop.home.dir", "C:\\winutils")
@@ -30,18 +31,30 @@ object FirstSparkApplication extends App {
     spark.sparkContext.setLogLevel("ERROR")
 
     // We retrieve the model
-    val model = getModel(spark, "data-students.json")
+    val model = getModel(spark, testDataName)
 
-    // Split the data into training and test sets (30% held out for testing)
-    val testData = prepareData(spark, testDataName).randomSplit(Array(0.7, 0.3))(1)
+    //test data cleaning
+    val testData = spark.read.json(testDataName)
+    val cleanedTest = Cleaner.cleanTestData(testData)
+      .select(
+        "bidfloor", "media", "appOrSite", "area",
+        "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
+        "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
+        "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
 
     // Make predictions.
-    val predictions = model.transform(testData).select("predictedLabel", "label", "bidFloor", "mediaIndex", "appOrSiteIndex", "area",
-      "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
-      "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
-      "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
-
-    saveInCsv(predictions)
+    val predictions = model.transform(cleanedTest)
+      /*.select("predictedLabel", "bidfloor", "mediaIndex", "appOrSiteIndex", "area",
+        "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
+        "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
+        "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")*/
+    println("ok")
+    predictions.printSchema()
+    val colPrediction = predictions.col("predictedLabel")
+    testData.printSchema()
+    val result = testData.withColumn("tuMeSaoule", colPrediction)
+    println("ok2")
+    //saveInCsv(predictions)
 
     spark.stop
   }
@@ -58,8 +71,8 @@ object FirstSparkApplication extends App {
     val formattedDate = dateFormat.format(date)
     predictions.coalesce(1)
       .write
-      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")
-      .option("header","true")
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+      .option("header", "true")
       .format("csv")
       .save("result/predictions_" + formattedDate + ".csv")
   }
@@ -71,6 +84,7 @@ object FirstSparkApplication extends App {
    * @return : The model loaded if already exists, otherwise the model created.
    */
   private def getModel(spark: SparkSession, trainingDataName: String): PipelineModel = {
+
     val modelPath = "./spark-lr-model"
     try {
       //if model exists
@@ -79,12 +93,21 @@ object FirstSparkApplication extends App {
       //else build the model
       case e: Exception =>
         // We prepare data to train the model
-        val trainingData = prepareData(spark, trainingDataName)
+        // Read json data
+        val trainingData = spark.read.json(trainingDataName)
+        val cleanedTrain = Cleaner.cleanTrainData(trainingData)
+          .select(
+            "label", "classWeightCol",
+            "bidfloor", "media", "appOrSite", "area",
+            "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
+            "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
+            "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
+
         // Index labels, adding metadata to the label column.
         val labelIndexer = new StringIndexer()
           .setInputCol("label")
           .setOutputCol("indexedLabel")
-          .fit(trainingData)
+          .fit(cleanedTrain)
 
         //We define a StringIndexers for the categorical variable media
         val indexerMedia = new StringIndexer()
@@ -98,7 +121,7 @@ object FirstSparkApplication extends App {
 
         // Create features column
         val assembler = new VectorAssembler()
-          .setInputCols(Array("bidFloor", "mediaIndex", "appOrSiteIndex", "area",
+          .setInputCols(Array("bidfloor", "mediaIndex", "appOrSiteIndex", "area",
             "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
             "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
             "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26"))
@@ -120,33 +143,10 @@ object FirstSparkApplication extends App {
         val pipeline = new Pipeline().setStages(Array(labelIndexer, indexerMedia, indexerAppOrSite, assembler, lr, labelConverter))
 
         // Train model.  This also runs the indexers.
-        val model = pipeline.fit(trainingData)
+        val model = pipeline.fit(cleanedTrain)
         model.write.overwrite().save(modelPath)
         model
     }
-  }
-
-  /**
-   *
-   * @param spark : spark session
-   * @param data  : name of the dataFrame to prepare
-   * @return : the dataFrame prepared
-   */
-  private def prepareData(spark: SparkSession, data: String): DataFrame = {
-    // Read json data
-    val jsonData = spark.read.json(data)
-
-    // DATA CLEANING
-    val cleanedData = Cleaner.generalClean(jsonData)
-
-    // Select only the needed columns
-    cleanedData.select(
-      "label", "classWeightCol",
-      "bidFloor", "media", "appOrSite", "area",
-      "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
-      "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
-      "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
-
   }
 
 }
