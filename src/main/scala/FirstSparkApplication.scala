@@ -1,11 +1,11 @@
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
-import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
-import org.apache.spark.mllib.evaluation.MulticlassMetrics
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.functions.udf
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 
 object FirstSparkApplication extends App {
@@ -37,76 +37,31 @@ object FirstSparkApplication extends App {
 
     // Make predictions.
     val predictions = model.transform(testData).select("predictedLabel", "label", "bidFloor", "mediaIndex", "appOrSiteIndex", "area",
-        "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
-        "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
-        "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
-    //predictions.printSchema()
-    predictions.coalesce(1).write.format("csv").save("predictions.csv")
-    buildMetrix(predictions)
+      "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
+      "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
+      "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")
+
+    saveInCsv(predictions)
+
     spark.stop
   }
 
   /**
-   * Print in the console all the metrix of the predictions in parameter
+   * Save the dataframe in a folder named "predictions_[day]_[time].csv"
    *
-   * @param predictions : dataFrame of the predictions
+   * @param predictions : dataframe to save
    */
-  private def buildMetrix(predictions: DataFrame): Unit = {
-    // Select (prediction, true label) and compute test error
-    val evaluator = new MulticlassClassificationEvaluator()
-      .setLabelCol("indexedLabel")
-      .setPredictionCol("prediction")
-      .setMetricName("accuracy")
-    val accuracy = evaluator.evaluate(predictions)
-    println("Test Error = " + (1.0 - accuracy))
-    println("ACCURACY " + accuracy)
-
-
-    val p = predictions.select("predictedLabel", "label", "features")
-
-    // Code a nettoyer
-    // Cast les colonnes label et predictedLabel en Double pour les metrics
-    val castToDouble = udf { label: String =>
-      if (label == "false") 0.0
-      else 1.0
-    }
-
-    val casted = castToDouble(p.col("label"))
-    val newDataframe = p.withColumn("label", casted)
-
-    val casted2 = castToDouble(p.col("predictedLabel"))
-    val newDataframe2 = newDataframe.withColumn("predictedLabel", casted2)
-
-    val rows: RDD[Row] = newDataframe2.rdd
-    val predictionAndLabels = rows.map(row => (row.getAs[Double](0), row.getAs[Double](1)))
-
-    // Instantiate metrics object
-    val metrics = new MulticlassMetrics(predictionAndLabels)
-
-    // Confusion matrix
-    println("Confusion matrix:")
-    println(metrics.confusionMatrix)
-
-    // Overall Statistics
-    val accuracy2 = metrics.accuracy
-    println("Summary Statistics")
-    println(s"Accuracy = " + accuracy2)
-
-    // Precision by label
-    val labels = metrics.labels
-    labels.foreach { l =>
-      println(s"Precision($l) = " + metrics.precision(l))
-    }
-
-    // Recall by label
-    labels.foreach { l =>
-      println(s"Recall($l) = " + metrics.recall(l))
-    }
-
-    // False positive rate by label
-    labels.foreach { l =>
-      println(s"FPR($l) = " + metrics.falsePositiveRate(l))
-    }
+  private def saveInCsv(predictions: DataFrame): Unit = {
+    val dir = new File("result").mkdir
+    val date = LocalDateTime.now()
+    val dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss")
+    val formattedDate = dateFormat.format(date)
+    predictions.coalesce(1)
+      .write
+      .option("mapreduce.fileoutputcommitter.marksuccessfuljobs","false")
+      .option("header","true")
+      .format("csv")
+      .save("result/predictions_" + formattedDate + ".csv")
   }
 
   /**
