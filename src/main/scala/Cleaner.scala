@@ -11,8 +11,9 @@ object Cleaner {
    */
   def cleanTrainData(df: DataFrame): DataFrame = {
 
-    /** Delete rows with a null value in the columns of features */
-    val dfCleaned_1 = df.na.drop("any", Seq("bidfloor", "appOrSite", "media", "interests", "size"))
+    val dfCleaned_0 = df.na.fill(0.0, Seq("bidfloor"))
+
+    val dfCleaned_1 = dfCleaned_0.na.fill("", Seq("appOrSite", "media"))
 
     /** Clean Interests Column */
     val dfCleaned_2 = cleanInterests(dfCleaned_1)
@@ -136,7 +137,7 @@ object Cleaner {
   def addClassWeightCol(df: DataFrame): DataFrame = {
 
     val addRatio = udf { label: Boolean =>
-      val balanceRatio = 0.97509967
+      val balanceRatio = 0.974029
       if (label) balanceRatio
       else 1 - balanceRatio
     }

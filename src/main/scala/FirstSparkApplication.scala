@@ -6,6 +6,10 @@ import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
 import org.apache.spark.sql.{DataFrame, SparkSession, functions}
+import org.apache.spark.sql.functions._
+
+
+import org.apache.hadoop.fs._;
 
 
 object FirstSparkApplication extends App {
@@ -48,17 +52,43 @@ object FirstSparkApplication extends App {
         "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
         "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
         "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")*/
-    println("ok")
-   /* val colPrediction = predictions.col("predictedLabel")
-    testData.printSchema()
-    val result = testData.withColumn("tuMeSaoule", colPrediction)*/
-    //saveInCsv(predictions)
 
-    // Save predicted labels as first col
-    val csvName = saveInCsv(predictions.select("predictedLabel"), "")
+    val predictionsDF = predictions.select("predictedLabel")
+    val finalColumn = predictionsDF.withColumn("label", predictionsDF("predictedLabel")).drop("predictedLabel")
+
+    val newDf = testData.withColumn("id1", monotonically_increasing_id())
+    val newPredictions = finalColumn.withColumn("id2", monotonically_increasing_id())
+
+    val df2 = newDf
+      .as("df1")
+      .join(
+        newPredictions.as("df2"),
+        newDf("id1") === newPredictions("id2"),
+       "inner"
+      )
+        .select(
+          "df2.label",
+          "df1.appOrSite",
+          "df1.bidfloor",
+          "df1.city",
+          "df1.exchange",
+          "df1.impid",
+          "df1.interests",
+          "df1.media",
+          "df1.network",
+          "df1.os",
+          "df1.publisher",
+          "df1.size",
+          "df1.timestamp",
+          "df1.type",
+          "df1.user",
+        )
+
 
     // Save all columns of test data
-    saveInCsv(testData, csvName)
+    val testDataForCsv = df2.withColumn("size", testData.col("size").cast("String"))
+
+    saveInCsv(testDataForCsv)
 
     spark.stop
   }
@@ -68,16 +98,12 @@ object FirstSparkApplication extends App {
    *
    * @param predictions : dataframe to save
    */
-  private def saveInCsv(predictions: DataFrame, csvName: String): String = {
+  private def saveInCsv(predictions: DataFrame): Unit = {
     val dir = new File("result").mkdir
 
-    var formattedDate = csvName
-
-    if (formattedDate.isEmpty) {
-      val date = LocalDateTime.now()
-      val dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss")
-      formattedDate = dateFormat.format(date)
-    }
+    val date = LocalDateTime.now()
+    val dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss")
+    val formattedDate = dateFormat.format(date)
 
     predictions.coalesce(1)
       .write
@@ -86,8 +112,6 @@ object FirstSparkApplication extends App {
       .option("header", "true")
       .format("csv")
       .save("result/predictions_" + formattedDate + ".csv")
-
-    formattedDate
   }
 
   /**
@@ -139,6 +163,7 @@ object FirstSparkApplication extends App {
             "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
             "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26"))
           .setOutputCol("features")
+          .setHandleInvalid("keep")
 
         val lr = new LogisticRegression()
           .setWeightCol("classWeightCol")
