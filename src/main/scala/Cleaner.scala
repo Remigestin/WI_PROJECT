@@ -4,12 +4,12 @@ import org.apache.spark.sql.functions.udf
 object Cleaner {
 
   /**
-   * Complete cleaning of the dataframe
+   * Complete cleaning of the training dataframe
    *
    * @param df : dataframe containing a colomn "interests" and "size"
    * @return the given dataframe cleaned
    */
-  def generalClean(df: DataFrame): DataFrame = {
+  def cleanTrainData(df: DataFrame): DataFrame = {
 
     /** Delete rows with a null value in the columns of features */
     val dfCleaned_1 = df.na.drop("any", Seq("bidfloor", "appOrSite", "media", "interests", "size"))
@@ -27,12 +27,27 @@ object Cleaner {
     cleanSize(dfCleaned_4)
   }
 
+  /**
+   * Complete cleaning of the test dataframe
+   *
+   * @param df : dataframe containing a colomn "interests" and "size"
+   * @return the given dataframe cleaned
+   */
+  def cleanTestData(df: DataFrame): DataFrame = {
+
+    /** Clean Interests Column */
+    val dfCleaned_1 = cleanInterests(df)
+
+    /** Clean Size Column */
+    cleanSize(dfCleaned_1)
+
+  }
 
   /**
    * Clean "interests" column
    *
    * @param df : dataframe containing a colomn "interests"
-   * @return the given dataframe updated with new interests columns
+   * @return the given dataframe updated with new interests columnslabel
    */
   def cleanInterests(df: DataFrame): DataFrame = {
 
