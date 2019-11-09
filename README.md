@@ -3,6 +3,7 @@ First Web Intelligence project of team MIRA studying in IG5 at Polytech Montpell
 
 
 ##Set up
+
 Begin by cloning the project :
 
 ```
@@ -14,6 +15,7 @@ Be careful your data should be named : "testData.json"
 
 
 ###Build a new model
+
 A model already exists on the project (it's the "spark-lr-model folder"). 
 When the program is running, this model is load and so used.
 
@@ -24,6 +26,7 @@ And so, when you will run the program it will first build the new model and then
 
 
 ##Run
+
 After everything is set up, just run on shell : 
 ```
 sbt run
@@ -31,6 +34,7 @@ sbt run
 
 
 ##Result
+
 After running the program, on the root of the project you will find a folder named "result". 
 Inside, the result csv is contained in a folder named : "predictions_[date]_[time]". 
 This allowed you to keep a track of every run.
