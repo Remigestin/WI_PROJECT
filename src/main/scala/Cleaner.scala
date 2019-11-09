@@ -54,7 +54,8 @@ object Cleaner {
     /** REPLACE NULL WITH N/A */
     /** KEEP ONLY INTERESTS IN THE RIGHT FORMAT (code starting with IAB) */
     val removeIfNotCodeUDF = udf { interests: String =>
-      interests.split(",").filter(_.startsWith("IAB")) mkString ","
+      if (interests == null) ""
+      else interests.split(",").filter(_.startsWith("IAB")) mkString ","
     }
 
     val interestsCleaned = removeIfNotCodeUDF(df.col("interests"))
@@ -107,14 +108,18 @@ object Cleaner {
 
     val sizeArea = udf { size: Seq[Long] =>
 
-      val area = size(0) * size(1)
-      //big area
-      if (area > 150000) 3
+      if (size == null) 0
+
       else {
-        //medium area
-        if (area > 60000) 2
-        //small area
-        else 1
+        val area = size(0) * size(1)
+        //big area
+        if (area > 150000) 3
+        else {
+          //medium area
+          if (area > 60000) 2
+          //small area
+          else 1
+        }
       }
     }
 
