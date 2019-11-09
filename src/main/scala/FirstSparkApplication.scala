@@ -49,12 +49,16 @@ object FirstSparkApplication extends App {
         "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
         "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")*/
     println("ok")
-    predictions.printSchema()
-    val colPrediction = predictions.col("predictedLabel")
+   /* val colPrediction = predictions.col("predictedLabel")
     testData.printSchema()
-    val result = testData.withColumn("tuMeSaoule", colPrediction)
-    println("ok2")
+    val result = testData.withColumn("tuMeSaoule", colPrediction)*/
     //saveInCsv(predictions)
+
+    // Save predicted labels as first col
+    val csvName = saveInCsv(predictions.select("predictedLabel"), "")
+
+    // Save all columns of test data
+    saveInCsv(testData, csvName)
 
     spark.stop
   }
@@ -64,17 +68,26 @@ object FirstSparkApplication extends App {
    *
    * @param predictions : dataframe to save
    */
-  private def saveInCsv(predictions: DataFrame): Unit = {
+  private def saveInCsv(predictions: DataFrame, csvName: String): String = {
     val dir = new File("result").mkdir
-    val date = LocalDateTime.now()
-    val dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss")
-    val formattedDate = dateFormat.format(date)
+
+    var formattedDate = csvName
+
+    if (formattedDate.isEmpty) {
+      val date = LocalDateTime.now()
+      val dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy_HH-mm-ss")
+      formattedDate = dateFormat.format(date)
+    }
+
     predictions.coalesce(1)
       .write
+      .mode("append")
       .option("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
       .option("header", "true")
       .format("csv")
       .save("result/predictions_" + formattedDate + ".csv")
+
+    formattedDate
   }
 
   /**
