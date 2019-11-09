@@ -40,7 +40,10 @@ object Cleaner {
     val dfCleaned_1 = cleanInterests(df)
 
     /** Clean Size Column */
-    cleanSize(dfCleaned_1)
+    val dfCleaned_2 = cleanSize(dfCleaned_1)
+
+    /** Replace null values */
+    dfCleaned_2.na.fill("")
 
   }
 
