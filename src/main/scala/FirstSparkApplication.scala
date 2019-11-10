@@ -5,15 +5,12 @@ import java.time.format.DateTimeFormatter
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.feature.{IndexToString, StringIndexer, VectorAssembler}
-import org.apache.spark.sql.{DataFrame, SparkSession, functions}
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.evaluation.{BinaryClassificationMetrics, MulticlassMetrics, RegressionMetrics}
+import org.apache.spark.mllib.evaluation.MulticlassMetrics
 
 import org.apache.spark.sql.{Row, SparkSession}
-
-
-import org.apache.hadoop.fs._;
 
 
 object FirstSparkApplication extends App {
@@ -26,7 +23,8 @@ object FirstSparkApplication extends App {
    */
   def predict(): Unit = {
 
-    val testDataName = "data-students.json"
+    val testDataName = "testData.json"
+    val trainingDataName = "trainingData.json"
 
     //Only for windows user I think
     System.setProperty("hadoop.home.dir", "C:\\winutils")
@@ -39,7 +37,7 @@ object FirstSparkApplication extends App {
     spark.sparkContext.setLogLevel("ERROR")
 
     // We retrieve the model
-    val model = getModel(spark, testDataName)
+    val model = getModel(spark, trainingDataName)
 
     //test data cleaning
     val testData = spark.read.json(testDataName)
@@ -52,12 +50,7 @@ object FirstSparkApplication extends App {
 
     // Make predictions.
     val predictions = model.transform(cleanedTest)
-      /*.select("predictedLabel", "bidfloor", "mediaIndex", "appOrSiteIndex", "area",
-        "IAB1", "IAB2", "IAB3", "IAB4", "IAB5", "IAB6", "IAB7", "IAB8", "IAB9", "IAB10",
-        "IAB11", "IAB12", "IAB13", "IAB14", "IAB15", "IAB16", "IAB17", "IAB18", "IAB19",
-        "IAB20", "IAB21", "IAB22", "IAB23", "IAB24", "IAB25", "IAB26")*/
 
-    predictions.groupBy("predictedLabel").count.show()
     val predictionsDF = predictions.select("predictedLabel")
     val finalColumn = predictionsDF.withColumn("labelp", predictionsDF("predictedLabel")).drop("predictedLabel")
 
@@ -69,79 +62,32 @@ object FirstSparkApplication extends App {
       .join(
         newPredictions.as("df2"),
         newDf("id1") === newPredictions("id2"),
-       "inner"
+        "inner"
       )
-        .select(
-          "df2.labelp",
-          "df1.appOrSite",
-          "df1.bidfloor",
-          "df1.city",
-          "df1.exchange",
-          "df1.impid",
-          "df1.interests",
-          "df1.media",
-          "df1.network",
-          "df1.os",
-          "df1.publisher",
-          "df1.size",
-          "df1.timestamp",
-          "df1.type",
-          "df1.user",
-          "df1.label"
-        )
+      .select(
+        "df2.labelp",
+        "df1.appOrSite",
+        "df1.bidfloor",
+        "df1.city",
+        "df1.exchange",
+        "df1.impid",
+        "df1.interests",
+        "df1.media",
+        "df1.network",
+        "df1.os",
+        "df1.publisher",
+        "df1.size",
+        "df1.timestamp",
+        "df1.type",
+        "df1.user",
+        "df1.label"
+      )
 
 
     // Save all columns of test data
     val testDataForCsv = df2.withColumn("size", testData.col("size").cast("String"))
 
     saveInCsv(testDataForCsv)
-
-    val p = df2.select("labelp", "label")
-
-    // Code a nettoyer
-    // Cast les colonnes label et predictedLabel en Double pour les metrics
-    val castToDouble = udf { label: String =>
-      if (label == "false") 0.0
-      else 1.0
-    }
-
-    val casted = castToDouble(p.col("label"))
-    val newDataframe = p.withColumn("label", casted)
-
-    val casted2 = castToDouble(p.col("labelp"))
-    val newDataframe2 = newDataframe.withColumn("labelp", casted2)
-
-    val rows: RDD[Row] = newDataframe2.rdd
-
-    val predictionAndLabels = rows.map(row => (row.getAs[Double](0), row.getAs[Double](1)))
-
-    // Instantiate metrics object
-    val metrics = new MulticlassMetrics(predictionAndLabels)
-
-    // Confusion matrix
-    println("Confusion matrix:")
-    println(metrics.confusionMatrix)
-
-    // Overall Statistics
-    val accuracy2 = metrics.accuracy
-    println("Summary Statistics")
-    println(s"Accuracy = " + accuracy2)
-
-    // Precision by label
-    val labels = metrics.labels
-    labels.foreach { l =>
-      println(s"Precision($l) = " + metrics.precision(l))
-    }
-
-    // Recall by label
-    labels.foreach { l =>
-      println(s"Recall($l) = " + metrics.recall(l))
-    }
-
-    // False positive rate by label
-    labels.foreach { l =>
-      println(s"FPR($l) = " + metrics.falsePositiveRate(l))
-    }
 
     spark.stop
   }
