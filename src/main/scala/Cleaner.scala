@@ -11,7 +11,7 @@ object Cleaner {
    */
   def cleanTrainData(df: DataFrame): DataFrame = {
 
-    val dfCleaned_0 = df.na.fill(0.0, Seq("bidfloor"))
+    val dfCleaned_0 = df.na.fill(1.0, Seq("bidfloor"))
 
     val dfCleaned_1 = dfCleaned_0.na.fill("", Seq("appOrSite", "media"))
 
@@ -26,25 +26,6 @@ object Cleaner {
 
     /** Clean Size Column */
     cleanSize(dfCleaned_4)
-  }
-
-  /**
-   * Complete cleaning of the test dataframe
-   *
-   * @param df : dataframe containing a colomn "interests" and "size"
-   * @return the given dataframe cleaned
-   */
-  def cleanTestData(df: DataFrame): DataFrame = {
-
-    /** Clean Interests Column */
-    val dfCleaned_1 = cleanInterests(df)
-
-    /** Clean Size Column */
-    val dfCleaned_2 = cleanSize(dfCleaned_1)
-
-    /** Replace null values */
-    dfCleaned_2.na.fill("")
-
   }
 
   /**
@@ -140,7 +121,7 @@ object Cleaner {
   def addClassWeightCol(df: DataFrame): DataFrame = {
 
     val addRatio = udf { label: Boolean =>
-      val balanceRatio = 0.974029
+      val balanceRatio = 0.97
       if (label) balanceRatio
       else 1 - balanceRatio
     }
