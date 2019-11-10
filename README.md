@@ -39,6 +39,6 @@ After running the program, on the root of the project you will find a folder nam
 Inside, the result csv is contained in a folder named : "predictions_[date]_[time]". 
 This allowed you to keep a track of every run.
 
-The csv represent your testing data with a new column on the beginning named "predictedLabel". 
+The csv represent your testing data with a new column on the beginning named "labelp". 
 As you may guess this column gathers the predictions made on your test data (true or false). 
 
